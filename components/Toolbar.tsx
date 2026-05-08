@@ -178,7 +178,7 @@ export default function Toolbar({
             <path d="M5 3L2 6L5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
           </svg>
         </button>
-        <button className={`${styles.actionBtn} ${styles.danger}`} onClick={onClear} data-tooltip="Clear board" aria-label="Clear board">
+        <button className={`${styles.actionBtn} ${styles.danger}`} onClick={onClear} data-tooltip="Clear your drawings" aria-label="Clear your drawings">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M2 4h12M5 4V2.5h6V4M6 7v5M10 7v5M3 4l1 9h8l1-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
           </svg>

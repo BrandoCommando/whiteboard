@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(s: string): boolean {
+  return UUID_RE.test(s);
+}
+
 // GET /api/drawings - Load all strokes
 export async function GET() {
   try {
@@ -57,11 +64,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE /api/drawings - Clear all drawings
-export async function DELETE() {
+// DELETE /api/drawings?user_id=… — remove all strokes for that user only
+export async function DELETE(request: NextRequest) {
   try {
+    const userId = request.nextUrl.searchParams.get('user_id');
+    if (!userId || !isUuid(userId)) {
+      return NextResponse.json({ error: 'Valid user_id query parameter is required' }, { status: 400 });
+    }
+
     const supabase = getServerSupabase();
-    const { error } = await supabase.from('drawings').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const { error } = await supabase.from('drawings').delete().eq('user_id', userId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

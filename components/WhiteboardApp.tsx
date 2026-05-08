@@ -74,12 +74,13 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
           }
         }
       )
-      // DB changes: clear board
+      // DB changes: stroke removed (e.g. another user cleared their drawings)
       .on(
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'drawings' },
-        () => {
-          setStrokes([]);
+        (payload) => {
+          const id = (payload.old as { id?: string } | null)?.id;
+          if (id) setStrokes(prev => prev.filter(s => s.id !== id));
         }
       )
       .subscribe(async (status) => {
@@ -138,9 +139,21 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
   }, []);
 
   const handleClearBoard = async () => {
-    if (!confirm('Clear the entire board? This cannot be undone.')) return;
-    setStrokes([]);
-    await fetch('/api/drawings', { method: 'DELETE' });
+    if (!confirm('Clear all of your drawings? This cannot be undone.')) return;
+    const previous = strokes;
+    setStrokes(prev => prev.filter(s => s.user_id !== user.id));
+    try {
+      const res = await fetch(`/api/drawings?user_id=${encodeURIComponent(user.id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        setStrokes(previous);
+        console.error('Failed to clear drawings:', await res.text());
+      }
+    } catch (err) {
+      setStrokes(previous);
+      console.error('Failed to clear drawings:', err);
+    }
   };
 
   const handleUndo = () => {
