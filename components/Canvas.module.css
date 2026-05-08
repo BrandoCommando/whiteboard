@@ -1,0 +1,47 @@
+.canvasWrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.dotGrid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.cursor {
+  position: absolute;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  transform: translate(-2px, -2px);
+  z-index: 10;
+  animation: fadeIn 0.15s ease;
+}
+
+.cursorLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
