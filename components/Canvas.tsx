@@ -18,11 +18,13 @@ interface Props {
 
 function getCanvasPoint(canvas: HTMLCanvasElement, e: MouseEvent | Touch): Point {
   const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
+  const dpr = window.devicePixelRatio || 1;
+  const clientX = e instanceof Touch ? e.clientX : e.clientX;
+  const clientY = e instanceof Touch ? e.clientY : e.clientY;
+  // Context uses scale(dpr), so drawing is in CSS/logical pixels — match that space.
   return {
-    x: ((e instanceof Touch ? e.clientX : e.clientX) - rect.left) * scaleX,
-    y: ((e instanceof Touch ? e.clientY : e.clientY) - rect.top) * scaleY,
+    x: ((clientX - rect.left) * canvas.width) / rect.width / dpr,
+    y: ((clientY - rect.top) * canvas.height) / rect.height / dpr,
   };
 }
 
