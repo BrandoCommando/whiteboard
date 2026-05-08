@@ -1,6 +1,7 @@
 .toolbar {
   width: var(--toolbar-w);
   height: 100vh;
+  max-height: 100dvh;
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
@@ -10,6 +11,10 @@
   gap: 4px;
   z-index: 20;
   flex-shrink: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .logo {
