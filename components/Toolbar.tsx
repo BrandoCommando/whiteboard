@@ -82,12 +82,25 @@ export default function Toolbar({
 }: Props) {
   return (
     <aside className={styles.toolbar}>
-      {/* Logo */}
-      <div className={styles.logo}>
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-          <path d="M3 19 Q7 5 11 11 Q15 17 19 3" stroke="var(--accent)" strokeWidth="2"
-            strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-        </svg>
+
+      {/* User avatar / logout */}
+      <div className={styles.avatar} style={{ background: user.color }} data-tooltip={`${user.username} — click to sign out`}
+        onClick={onLogout} role="button" tabIndex={0}
+        onKeyDown={e => e.key === 'Enter' && onLogout()}
+        aria-label="Sign out"
+      >
+        {user.username.slice(0, 1).toUpperCase()}
+      </div>
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Connection status */}
+      <div className={styles.status} data-tooltip={
+        connectionStatus === 'connected' ? 'Live — realtime sync active'
+        : connectionStatus === 'connecting' ? 'Connecting…'
+        : 'Disconnected'
+      }>
+        <div className={`${styles.statusDot} ${styles[connectionStatus]}`} />
       </div>
 
       <div className={styles.divider} />
@@ -185,26 +198,6 @@ export default function Toolbar({
         </button>
       </div>
 
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
-
-      {/* Connection status */}
-      <div className={styles.status} data-tooltip={
-        connectionStatus === 'connected' ? 'Live — realtime sync active'
-        : connectionStatus === 'connecting' ? 'Connecting…'
-        : 'Disconnected'
-      }>
-        <div className={`${styles.statusDot} ${styles[connectionStatus]}`} />
-      </div>
-
-      {/* User avatar / logout */}
-      <div className={styles.avatar} style={{ background: user.color }} data-tooltip={`${user.username} — click to sign out`}
-        onClick={onLogout} role="button" tabIndex={0}
-        onKeyDown={e => e.key === 'Enter' && onLogout()}
-        aria-label="Sign out"
-      >
-        {user.username.slice(0, 1).toUpperCase()}
-      </div>
     </aside>
   );
 }
