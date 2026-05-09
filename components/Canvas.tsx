@@ -222,7 +222,7 @@ export default function Canvas({
     const overlay = overlayRef.current;
     if (!overlay) return;
 
-    const touchOpts = { passive: false } as const;
+    const touchOpts: AddEventListenerOptions = { passive: false };
 
     if (typeof window.PointerEvent !== 'undefined') {
       const onPointerDown = (e: PointerEvent) => {
@@ -280,15 +280,17 @@ export default function Canvas({
       if (isDrawing.current) endDraw();
     };
 
-    const onTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
-      const t = e.touches[0];
+    const onTouchStart = (e: Event) => {
+      const te = e as TouchEvent;
+      te.preventDefault();
+      const t = te.touches[0];
       if (!t) return;
       startDraw(getCanvasPoint(overlay, t));
     };
-    const onTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      const t = e.touches[0];
+    const onTouchMove = (e: Event) => {
+      const te = e as TouchEvent;
+      te.preventDefault();
+      const t = te.touches[0];
       if (!t) return;
       continueDraw(getCanvasPoint(overlay, t));
     };
