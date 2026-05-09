@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Tool, User } from '@/types';
 import styles from './Toolbar.module.css';
 
@@ -81,8 +81,14 @@ export default function Toolbar({
   onToolChange, onColorChange, onStrokeWidthChange, onOpacityChange,
   onUndo, onClear, onLogout, user, connectionStatus,
 }: Props) {
+  const normalizedColor = color.toLowerCase();
+  const isCustomColor = !PRESET_COLORS.includes(normalizedColor);
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [isColorDrawerOpen, setIsColorDrawerOpen] = useState(false);
+  const [colorDrawerPos, setColorDrawerPos] = useState({ x: 0, y: 0 });
   const tooltipTargetRef = useRef<HTMLElement | null>(null);
+  const colorTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const colorDrawerRef = useRef<HTMLDivElement | null>(null);
 
   const updateTooltipPosition = () => {
     const target = tooltipTargetRef.current;
@@ -108,6 +114,54 @@ export default function Toolbar({
     setTooltip(null);
   };
 
+  const updateColorDrawerPosition = () => {
+    const trigger = colorTriggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    setColorDrawerPos({
+      x: rect.right + 12,
+      y: rect.top,
+    });
+  };
+
+  const toggleColorDrawer = () => {
+    setIsColorDrawerOpen(prev => {
+      const next = !prev;
+      if (next) {
+        updateColorDrawerPosition();
+        hideTooltip();
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!isColorDrawerOpen) return;
+
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (colorDrawerRef.current?.contains(target)) return;
+      if (colorTriggerRef.current?.contains(target)) return;
+      setIsColorDrawerOpen(false);
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsColorDrawerOpen(false);
+    };
+    const handleReposition = () => updateColorDrawerPosition();
+
+    window.addEventListener('mousedown', handleOutside);
+    window.addEventListener('keydown', handleEsc);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+
+    return () => {
+      window.removeEventListener('mousedown', handleOutside);
+      window.removeEventListener('keydown', handleEsc);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [isColorDrawerOpen]);
+
   return (
     <aside
       className={styles.toolbar}
@@ -116,7 +170,10 @@ export default function Toolbar({
       onMouseLeave={hideTooltip}
       onFocusCapture={e => showTooltip((e.target as HTMLElement).closest('[data-tooltip]'))}
       onBlurCapture={hideTooltip}
-      onScroll={hideTooltip}
+      onScroll={() => {
+        hideTooltip();
+        if (isColorDrawerOpen) updateColorDrawerPosition();
+      }}
     >
 
       {/* User avatar / logout */}
@@ -161,26 +218,17 @@ export default function Toolbar({
 
       {/* Color Picker */}
       <div className={styles.section}>
-        {PRESET_COLORS.map(c => (
-          <button
-            key={c}
-            className={`${styles.colorBtn} ${color === c ? styles.colorActive : ''}`}
-            onClick={() => onColorChange(c)}
-            style={{ '--swatch': c } as React.CSSProperties}
-            aria-label={`Color ${c}`}
-          />
-        ))}
-        {/* Custom color */}
-        <div className={styles.customColorWrap} data-tooltip="Custom color">
-          <input
-            type="color"
-            value={color}
-            onChange={e => onColorChange(e.target.value)}
-            className={styles.customColor}
-            aria-label="Custom color"
-          />
-          <div className={styles.customColorPreview} style={{ background: color }} />
-        </div>
+        <button
+          ref={colorTriggerRef}
+          className={`${styles.colorTrigger} ${isColorDrawerOpen ? styles.active : ''}`}
+          onClick={toggleColorDrawer}
+          data-tooltip="Color"
+          aria-label="Choose drawing color"
+          aria-expanded={isColorDrawerOpen}
+          aria-haspopup="dialog"
+        >
+          <span className={styles.colorTriggerSwatch} style={{ background: color }} />
+        </button>
       </div>
 
       <div className={styles.divider} />
@@ -240,6 +288,46 @@ export default function Toolbar({
           role="tooltip"
         >
           {tooltip.text}
+        </div>
+      )}
+      {isColorDrawerOpen && (
+        <div
+          ref={colorDrawerRef}
+          className={styles.colorDrawer}
+          style={{ left: colorDrawerPos.x, top: colorDrawerPos.y }}
+          role="dialog"
+          aria-label="Color picker"
+        >
+          <div className={styles.colorGrid}>
+            {PRESET_COLORS.map(c => (
+              <button
+                key={c}
+                className={`${styles.colorBtn} ${normalizedColor === c ? styles.colorActive : ''}`}
+                onClick={() => {
+                  onColorChange(c);
+                  setIsColorDrawerOpen(false);
+                }}
+                style={{ '--swatch': c } as React.CSSProperties}
+                aria-label={`Color ${c}`}
+              />
+            ))}
+          </div>
+          <div className={styles.customColorRow}>
+            <span>Custom</span>
+            <div className={`${styles.customColorWrap} ${isCustomColor ? styles.customColorActive : ''}`}>
+              <input
+                type="color"
+                value={color}
+                onChange={e => {
+                  onColorChange(e.target.value);
+                  setIsColorDrawerOpen(false);
+                }}
+                className={styles.customColor}
+                aria-label="Custom color"
+              />
+              <div className={styles.customColorPreview} style={{ background: color }} />
+            </div>
+          </div>
         </div>
       )}
 
