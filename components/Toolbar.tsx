@@ -184,8 +184,6 @@ export default function Toolbar({
       >
         {user.username.slice(0, 1).toUpperCase()}
       </div>
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
 
       {/* Connection status */}
       <div className={styles.status} data-tooltip={
@@ -330,6 +328,8 @@ export default function Toolbar({
           </div>
         </div>
       )}
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
 
     </aside>
   );
