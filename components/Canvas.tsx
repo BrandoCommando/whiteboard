@@ -16,15 +16,18 @@ interface Props {
   onCursorMove: (point: Point) => void;
 }
 
-function getCanvasPoint(canvas: HTMLCanvasElement, e: MouseEvent | Touch): Point {
+/** Map to logical drawing coords (CSS px). Uses layout box — Safari can mismatch `devicePixelRatio` vs backing store when zoomed. */
+function getCanvasPoint(canvas: HTMLCanvasElement, e: MouseEvent | Touch | PointerEvent): Point {
   const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const clientX = e instanceof Touch ? e.clientX : e.clientX;
-  const clientY = e instanceof Touch ? e.clientY : e.clientY;
-  // Context uses scale(dpr), so drawing is in CSS/logical pixels — match that space.
+  const cx = e.clientX;
+  const cy = e.clientY;
+  const lw = canvas.offsetWidth || rect.width || 1;
+  const lh = canvas.offsetHeight || rect.height || 1;
+  const rw = rect.width || 1;
+  const rh = rect.height || 1;
   return {
-    x: ((clientX - rect.left) * canvas.width) / rect.width / dpr,
-    y: ((clientY - rect.top) * canvas.height) / rect.height / dpr,
+    x: ((cx - rect.left) / rw) * lw,
+    y: ((cy - rect.top) / rh) * lh,
   };
 }
 
@@ -114,10 +117,10 @@ export default function Canvas({
     if (!canvas || !overlay) return;
     const resize = () => {
       const { offsetWidth: w, offsetHeight: h } = canvas.parentElement!;
+      if (w <= 0 || h <= 0) return;
       const dpr = window.devicePixelRatio || 1;
       // Save current drawing
       const ctx = canvas.getContext('2d')!;
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       canvas.style.width = w + 'px';
@@ -132,6 +135,7 @@ export default function Canvas({
       redrawAll(ctx, canvas, strokes);
     };
     resize();
+    requestAnimationFrame(resize);
     const ro = new ResizeObserver(resize);
     ro.observe(canvas.parentElement!);
     return () => ro.disconnect();
@@ -213,10 +217,55 @@ export default function Canvas({
     });
   }, [color, strokeWidth, tool, opacity, user, onStrokeComplete]);
 
-  // Mouse events
+  // Pointer events unify mouse / pen / touch (Safari 13+). Legacy path keeps mouse + touch.
   useEffect(() => {
     const overlay = overlayRef.current;
     if (!overlay) return;
+
+    const touchOpts = { passive: false } as const;
+
+    if (typeof window.PointerEvent !== 'undefined') {
+      const onPointerDown = (e: PointerEvent) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault();
+        try {
+          overlay.setPointerCapture(e.pointerId);
+        } catch {
+          /* noop — capture can fail in edge cases */
+        }
+        startDraw(getCanvasPoint(overlay, e));
+      };
+      const onPointerMove = (e: PointerEvent) => {
+        const pt = getCanvasPoint(overlay, e);
+        if (!isDrawing.current) {
+          if (e.pointerType === 'mouse') onCursorMove(pt);
+          return;
+        }
+        e.preventDefault();
+        onCursorMove(pt);
+        continueDraw(pt);
+      };
+      const releaseAndEnd = (e: PointerEvent) => {
+        try {
+          if (overlay.hasPointerCapture(e.pointerId)) overlay.releasePointerCapture(e.pointerId);
+        } catch {
+          /* noop */
+        }
+        endDraw();
+      };
+
+      overlay.addEventListener('pointerdown', onPointerDown);
+      overlay.addEventListener('pointermove', onPointerMove);
+      overlay.addEventListener('pointerup', releaseAndEnd);
+      overlay.addEventListener('pointercancel', releaseAndEnd);
+
+      return () => {
+        overlay.removeEventListener('pointerdown', onPointerDown);
+        overlay.removeEventListener('pointermove', onPointerMove);
+        overlay.removeEventListener('pointerup', releaseAndEnd);
+        overlay.removeEventListener('pointercancel', releaseAndEnd);
+      };
+    }
 
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
@@ -227,46 +276,44 @@ export default function Canvas({
       continueDraw(getCanvasPoint(overlay, e));
     };
     const onMouseUp = () => endDraw();
-    const onMouseLeave = () => { if (isDrawing.current) endDraw(); };
+    const onMouseLeave = () => {
+      if (isDrawing.current) endDraw();
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      if (!t) return;
+      startDraw(getCanvasPoint(overlay, t));
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      if (!t) return;
+      continueDraw(getCanvasPoint(overlay, t));
+    };
+    const onTouchEnd = () => endDraw();
 
     overlay.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     overlay.addEventListener('mouseleave', onMouseLeave);
+    overlay.addEventListener('touchstart', onTouchStart, touchOpts);
+    overlay.addEventListener('touchmove', onTouchMove, touchOpts);
+    overlay.addEventListener('touchend', onTouchEnd);
+    overlay.addEventListener('touchcancel', onTouchEnd);
 
     return () => {
       overlay.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       overlay.removeEventListener('mouseleave', onMouseLeave);
+      overlay.removeEventListener('touchstart', onTouchStart, touchOpts);
+      overlay.removeEventListener('touchmove', onTouchMove, touchOpts);
+      overlay.removeEventListener('touchend', onTouchEnd);
+      overlay.removeEventListener('touchcancel', onTouchEnd);
     };
   }, [startDraw, continueDraw, endDraw, onCursorMove]);
-
-  // Touch events
-  useEffect(() => {
-    const overlay = overlayRef.current;
-    if (!overlay) return;
-
-    const onTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
-      startDraw(getCanvasPoint(overlay, e.touches[0]));
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      continueDraw(getCanvasPoint(overlay, e.touches[0]));
-    };
-    const onTouchEnd = () => endDraw();
-
-    overlay.addEventListener('touchstart', onTouchStart, { passive: false });
-    overlay.addEventListener('touchmove', onTouchMove, { passive: false });
-    overlay.addEventListener('touchend', onTouchEnd);
-
-    return () => {
-      overlay.removeEventListener('touchstart', onTouchStart);
-      overlay.removeEventListener('touchmove', onTouchMove);
-      overlay.removeEventListener('touchend', onTouchEnd);
-    };
-  }, [startDraw, continueDraw, endDraw]);
 
   const cursorStyle =
     tool === 'eraser' ? 'cell'
