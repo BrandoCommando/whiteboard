@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState } from 'react';
 import { Tool, User } from '@/types';
 import styles from './Toolbar.module.css';
 
@@ -80,8 +81,43 @@ export default function Toolbar({
   onToolChange, onColorChange, onStrokeWidthChange, onOpacityChange,
   onUndo, onClear, onLogout, user, connectionStatus,
 }: Props) {
+  const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const tooltipTargetRef = useRef<HTMLElement | null>(null);
+
+  const updateTooltipPosition = () => {
+    const target = tooltipTargetRef.current;
+    if (!target) return;
+    const text = target.dataset.tooltip;
+    if (!text) return;
+    const rect = target.getBoundingClientRect();
+    setTooltip({
+      text,
+      x: rect.right + 10,
+      y: rect.top + rect.height / 2,
+    });
+  };
+
+  const showTooltip = (target: HTMLElement | null) => {
+    if (!target?.dataset.tooltip) return;
+    tooltipTargetRef.current = target;
+    updateTooltipPosition();
+  };
+
+  const hideTooltip = () => {
+    tooltipTargetRef.current = null;
+    setTooltip(null);
+  };
+
   return (
-    <aside className={styles.toolbar}>
+    <aside
+      className={styles.toolbar}
+      onMouseOver={e => showTooltip((e.target as HTMLElement).closest('[data-tooltip]'))}
+      onMouseMove={() => updateTooltipPosition()}
+      onMouseLeave={hideTooltip}
+      onFocusCapture={e => showTooltip((e.target as HTMLElement).closest('[data-tooltip]'))}
+      onBlurCapture={hideTooltip}
+      onScroll={hideTooltip}
+    >
 
       {/* User avatar / logout */}
       <div className={styles.avatar} style={{ background: user.color }} data-tooltip={`${user.username} — click to sign out`}
@@ -197,6 +233,15 @@ export default function Toolbar({
           </svg>
         </button>
       </div>
+      {tooltip && (
+        <div
+          className={styles.floatingTooltip}
+          style={{ left: tooltip.x, top: tooltip.y }}
+          role="tooltip"
+        >
+          {tooltip.text}
+        </div>
+      )}
 
     </aside>
   );

@@ -17,6 +17,12 @@
   overscroll-behavior: contain;
 }
 
+/* Disable global pseudo-tooltips inside toolbar scroll container. */
+.toolbar [data-tooltip]:hover::after,
+.toolbar [data-tooltip]:focus-visible::after {
+  content: none;
+}
+
 .logo {
   width: 40px;
   height: 40px;
@@ -236,4 +242,19 @@
 .avatar:hover {
   transform: scale(1.08);
   box-shadow: 0 0 0 3px var(--border-strong);
+}
+
+.floatingTooltip {
+  position: fixed;
+  transform: translateY(-50%);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 2000;
+  font-family: var(--font-body);
 }
