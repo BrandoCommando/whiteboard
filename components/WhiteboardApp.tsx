@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { User, Stroke, Tool, Point, ActiveUser } from '@/types';
 import { supabase } from '@/lib/supabase';
 import Canvas from './Canvas';
@@ -22,6 +22,7 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [opacity, setOpacity] = useState(1.0);
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
+  const [hiddenUserIds, setHiddenUserIds] = useState<Set<string>>(new Set());
   const [loadingStrokes, setLoadingStrokes] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
@@ -168,6 +169,23 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
     });
   };
 
+  const visibleStrokes = useMemo(
+    () => strokes.filter(s => !hiddenUserIds.has(s.user_id)),
+    [strokes, hiddenUserIds]
+  );
+
+  const toggleUserVisibility = useCallback((userId: string) => {
+    setHiddenUserIds(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  }, []);
+
   return (
     <div className={styles.root}>
       <Toolbar
@@ -194,7 +212,7 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
           </div>
         ) : (
           <Canvas
-            strokes={strokes}
+            strokes={visibleStrokes}
             tool={tool}
             color={color}
             strokeWidth={strokeWidth}
@@ -207,7 +225,13 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
         )}
       </main>
 
-      <UsersPanel user={user} activeUsers={activeUsers} />
+      <UsersPanel
+        user={user}
+        activeUsers={activeUsers}
+        strokes={strokes}
+        hiddenUserIds={hiddenUserIds}
+        onToggleVisibility={toggleUserVisibility}
+      />
     </div>
   );
 }
