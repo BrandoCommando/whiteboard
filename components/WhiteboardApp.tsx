@@ -14,23 +14,6 @@ interface Props {
 }
 
 const CURSOR_THROTTLE_MS = 50;
-const POLL_MS_CONNECTED = 4000;
-const POLL_MS_DISCONNECTED = 2000;
-
-function mergeDrawings(server: Stroke[], local: Stroke[]): Stroke[] {
-  const byId = new Map<string, Stroke>();
-  for (const s of server) {
-    byId.set(s.id, s);
-  }
-  for (const s of local) {
-    if (!byId.has(s.id)) {
-      byId.set(s.id, s);
-    }
-  }
-  return Array.from(byId.values()).sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
-}
 
 export default function WhiteboardApp({ user, onLogout }: Props) {
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -121,32 +104,6 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
     };
   }, [user]);
 
-  // Poll drawings over HTTP so state converges if Realtime drops events
-  useEffect(() => {
-    if (loadingStrokes) return;
-
-    const intervalMs =
-      connectionStatus === 'disconnected' ? POLL_MS_DISCONNECTED : POLL_MS_CONNECTED;
-
-    const tick = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      void (async () => {
-        try {
-          const res = await fetch('/api/drawings');
-          if (!res.ok) return;
-          const data: unknown = await res.json();
-          if (!Array.isArray(data)) return;
-          setStrokes((prev) => mergeDrawings(data as Stroke[], prev));
-        } catch {
-          // keep existing strokes; Realtime + next poll may recover
-        }
-      })();
-    };
-
-    const id = setInterval(tick, intervalMs);
-    return () => clearInterval(id);
-  }, [loadingStrokes, connectionStatus]);
-
   // Broadcast cursor position (throttled)
   const broadcastCursor = useCallback((point: Point) => {
     const now = Date.now();
@@ -162,26 +119,21 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
 
   // Called when user completes a stroke
   const handleStrokeComplete = useCallback(async (stroke: Omit<Stroke, 'id' | 'created_at'>) => {
-    const optimisticId = crypto.randomUUID();
+    // Optimistic: add locally first
     const optimisticStroke: Stroke = {
       ...stroke,
-      id: optimisticId,
+      id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
     };
     setStrokes(prev => [...prev, optimisticStroke]);
 
+    // Persist to DB (Supabase realtime will broadcast to others)
     try {
-      const res = await fetch('/api/drawings', {
+      await fetch('/api/drawings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(stroke),
       });
-      if (!res.ok) {
-        console.error('Failed to save stroke:', await res.text());
-        return;
-      }
-      const saved = (await res.json()) as Stroke;
-      setStrokes(prev => prev.map(s => (s.id === optimisticId ? saved : s)));
     } catch (err) {
       console.error('Failed to save stroke:', err);
     }

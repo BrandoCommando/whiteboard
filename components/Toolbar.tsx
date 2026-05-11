@@ -187,10 +187,9 @@ export default function Toolbar({
 
       {/* Connection status */}
       <div className={styles.status} data-tooltip={
-        connectionStatus === 'connected'
-          ? 'Live — realtime sync; strokes also refresh from the server every few seconds'
-          : connectionStatus === 'connecting' ? 'Connecting…'
-          : 'Disconnected — strokes still refresh from the server periodically'
+        connectionStatus === 'connected' ? 'Live — realtime sync active'
+        : connectionStatus === 'connecting' ? 'Connecting…'
+        : 'Disconnected'
       }>
         <div className={`${styles.statusDot} ${styles[connectionStatus]}`} />
       </div>
