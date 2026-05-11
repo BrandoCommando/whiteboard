@@ -40,151 +40,67 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
       .catch(() => setLoadingStrokes(false));
   }, []);
 
-  // Setup Supabase Realtime, with automatic reconnection
+  // Setup Supabase Realtime
   useEffect(() => {
-    let cancelled = false;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let attempt = 0;
-    let connected = false;
-    let hasConnectedOnce = false;
+    const channel = supabase.channel('whiteboard', {
+      config: { presence: { key: user.id } },
+    });
 
-    const refetchStrokes = async () => {
-      try {
-        const res = await fetch('/api/drawings');
-        const data: Stroke[] = await res.json();
-        if (!cancelled) setStrokes(data ?? []);
-      } catch (err) {
-        console.error('Failed to refetch strokes:', err);
-      }
-    };
-
-    const connect = () => {
-      if (cancelled) return;
-
-      // Tear down any prior channel before creating a new one
-      if (channelRef.current) {
-        channelRef.current.unsubscribe();
-        channelRef.current = null;
-      }
-
-      setConnectionStatus('connecting');
-
-      const channel = supabase.channel('whiteboard', {
-        config: { presence: { key: user.id } },
+    channel
+      // Presence: track online users and cursors
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState<{ username: string; color: string; cursor?: Point; last_seen_at: string }>();
+        const users: ActiveUser[] = Object.entries(state).map(([id, presences]) => {
+          const p = presences[0];
+          return { id, username: p.username, color: p.color, cursor: p.cursor, last_seen_at: p.last_seen_at };
+        });
+        setActiveUsers(users.filter(u => u.id !== user.id));
+      })
+      .on('presence', { event: 'join' }, ({ newPresences }) => {
+        // Handled by sync
+        void newPresences;
+      })
+      .on('presence', { event: 'leave' }, () => {
+        // Handled by sync
+      })
+      // DB changes: new stroke added by another user
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'drawings' },
+        (payload) => {
+          const newStroke = payload.new as Stroke;
+          // Don't add strokes from ourselves (we already have them locally)
+          if (newStroke.user_id !== user.id) {
+            setStrokes(prev => [...prev, newStroke]);
+          }
+        }
+      )
+      // DB changes: stroke removed (e.g. another user cleared their drawings)
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'drawings' },
+        (payload) => {
+          const id = (payload.old as { id?: string } | null)?.id;
+          if (id) setStrokes(prev => prev.filter(s => s.id !== id));
+        }
+      )
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          setConnectionStatus('connected');
+          await channel.track({
+            username: user.username,
+            color: user.color,
+            last_seen_at: new Date().toISOString(),
+          });
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setConnectionStatus('disconnected');
+        }
       });
 
-      channel
-        // Presence: track online users and cursors
-        .on('presence', { event: 'sync' }, () => {
-          const state = channel.presenceState<{ username: string; color: string; cursor?: Point; last_seen_at: string }>();
-          const users: ActiveUser[] = Object.entries(state).map(([id, presences]) => {
-            const p = presences[0];
-            return { id, username: p.username, color: p.color, cursor: p.cursor, last_seen_at: p.last_seen_at };
-          });
-          setActiveUsers(users.filter(u => u.id !== user.id));
-        })
-        .on('presence', { event: 'join' }, ({ newPresences }) => {
-          void newPresences;
-        })
-        .on('presence', { event: 'leave' }, () => {})
-        // DB changes: new stroke added by another user
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'drawings' },
-          (payload) => {
-            const newStroke = payload.new as Stroke;
-            if (newStroke.user_id !== user.id) {
-              // Guard against duplicates from refetch-after-reconnect overlap
-              setStrokes(prev =>
-                prev.some(s => s.id === newStroke.id) ? prev : [...prev, newStroke]
-              );
-            }
-          }
-        )
-        // DB changes: stroke removed (e.g. another user cleared their drawings)
-        .on(
-          'postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'drawings' },
-          (payload) => {
-            const id = (payload.old as { id?: string } | null)?.id;
-            if (id) setStrokes(prev => prev.filter(s => s.id !== id));
-          }
-        )
-        .subscribe(async (status) => {
-          if (cancelled) return;
-          if (status === 'SUBSCRIBED') {
-            attempt = 0;
-            connected = true;
-            setConnectionStatus('connected');
-            await channel.track({
-              username: user.username,
-              color: user.color,
-              last_seen_at: new Date().toISOString(),
-            });
-            // After a reconnect, refetch to catch up on events missed
-            // while we were offline.
-            if (hasConnectedOnce) await refetchStrokes();
-            hasConnectedOnce = true;
-          } else if (
-            status === 'CLOSED' ||
-            status === 'CHANNEL_ERROR' ||
-            status === 'TIMED_OUT'
-          ) {
-            connected = false;
-            setConnectionStatus('disconnected');
-            scheduleReconnect();
-          }
-        });
-
-      channelRef.current = channel;
-    };
-
-    const scheduleReconnect = () => {
-      if (cancelled || reconnectTimer) return;
-      // Exponential backoff with jitter, capped at 30s
-      const base = Math.min(1000 * 2 ** attempt, 30000);
-      const delay = base / 2 + Math.random() * (base / 2);
-      attempt += 1;
-      reconnectTimer = setTimeout(() => {
-        reconnectTimer = null;
-        connect();
-      }, delay);
-    };
-
-    const reconnectNow = () => {
-      if (cancelled) return;
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
-      attempt = 0;
-      connect();
-    };
-
-    const handleOnline = () => {
-      if (!connected) reconnectNow();
-    };
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && !connected) {
-        reconnectNow();
-      }
-    };
-
-    connect();
-
-    window.addEventListener('online', handleOnline);
-    document.addEventListener('visibilitychange', handleVisibility);
+    channelRef.current = channel;
 
     return () => {
-      cancelled = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      window.removeEventListener('online', handleOnline);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      if (channelRef.current) {
-        channelRef.current.unsubscribe();
-        channelRef.current = null;
-      }
+      channel.unsubscribe();
     };
   }, [user]);
 
