@@ -18,6 +18,8 @@ interface Props {
   onLogout: () => void;
   user: User;
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
+  isMobileOpen: boolean;
+  onCloseMobile: () => void;
 }
 
 const TOOLS: { id: Tool; label: string; icon: React.ReactNode }[] = [
@@ -80,6 +82,7 @@ export default function Toolbar({
   tool, color, strokeWidth, opacity,
   onToolChange, onColorChange, onStrokeWidthChange, onOpacityChange,
   onUndo, onClear, onLogout, user, connectionStatus,
+  isMobileOpen, onCloseMobile,
 }: Props) {
   const normalizedColor = color.toLowerCase();
   const isCustomColor = !PRESET_COLORS.includes(normalizedColor);
@@ -162,9 +165,18 @@ export default function Toolbar({
     };
   }, [isColorDrawerOpen]);
 
+  // Close the color sub-drawer when the whole toolbar is hidden on mobile.
+  useEffect(() => {
+    if (!isMobileOpen && isColorDrawerOpen) {
+      setIsColorDrawerOpen(false);
+    }
+  }, [isMobileOpen, isColorDrawerOpen]);
+
   return (
     <aside
-      className={styles.toolbar}
+      className={`${styles.toolbar} ${isMobileOpen ? styles.mobileOpen : ''}`}
+      role="toolbar"
+      aria-label="Drawing tools"
       onMouseOver={e => showTooltip((e.target as HTMLElement).closest('[data-tooltip]'))}
       onMouseMove={() => updateTooltipPosition()}
       onMouseLeave={hideTooltip}
@@ -175,6 +187,17 @@ export default function Toolbar({
         if (isColorDrawerOpen) updateColorDrawerPosition();
       }}
     >
+      <button
+        type="button"
+        className={styles.mobileCloseBtn}
+        onClick={onCloseMobile}
+        aria-label="Close tools"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      </button>
+
 
       {/* User avatar / logout */}
       <div className={styles.avatar} style={{ background: user.color }} data-tooltip={`${user.username} — click to sign out`}

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import Canvas from './Canvas';
 import Toolbar from './Toolbar';
 import UsersPanel from './UsersPanel';
+import UsersSvgrepoIcon from './UsersSvgrepoIcon';
 import styles from './WhiteboardApp.module.css';
 
 interface Props {
@@ -25,6 +26,8 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
   const [hiddenUserIds, setHiddenUserIds] = useState<Set<string>>(new Set());
   const [loadingStrokes, setLoadingStrokes] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
+  const [mobileUsersOpen, setMobileUsersOpen] = useState(false);
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const lastCursorBroadcast = useRef(0);
@@ -186,6 +189,25 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
     });
   }, []);
 
+  // Close mobile overlays on Escape
+  useEffect(() => {
+    if (!mobileToolbarOpen && !mobileUsersOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setMobileToolbarOpen(false);
+      setMobileUsersOpen(false);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [mobileToolbarOpen, mobileUsersOpen]);
+
+  const closeMobileOverlays = useCallback(() => {
+    setMobileToolbarOpen(false);
+    setMobileUsersOpen(false);
+  }, []);
+
+  const showBackdrop = mobileToolbarOpen || mobileUsersOpen;
+
   return (
     <div className={styles.root}>
       <Toolbar
@@ -202,6 +224,8 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
         onLogout={onLogout}
         user={user}
         connectionStatus={connectionStatus}
+        isMobileOpen={mobileToolbarOpen}
+        onCloseMobile={() => setMobileToolbarOpen(false)}
       />
 
       <main className={styles.main}>
@@ -231,7 +255,58 @@ export default function WhiteboardApp({ user, onLogout }: Props) {
         strokes={strokes}
         hiddenUserIds={hiddenUserIds}
         onToggleVisibility={toggleUserVisibility}
+        isMobileOpen={mobileUsersOpen}
+        onCloseMobile={() => setMobileUsersOpen(false)}
       />
+
+      {showBackdrop && (
+        <div
+          className={styles.mobileBackdrop}
+          onClick={closeMobileOverlays}
+          aria-hidden="true"
+        />
+      )}
+
+      <div className={styles.fabStack}>
+        <button
+          type="button"
+          className={`${styles.fab} ${mobileUsersOpen ? styles.fabActive : ''}`}
+          onClick={() => {
+            setMobileToolbarOpen(false);
+            setMobileUsersOpen(v => !v);
+          }}
+          aria-label={mobileUsersOpen ? 'Close people panel' : 'Open people panel'}
+          aria-expanded={mobileUsersOpen}
+          aria-haspopup="dialog"
+        >
+          <UsersSvgrepoIcon size={22} />
+        </button>
+        <button
+          type="button"
+          className={`${styles.fab} ${mobileToolbarOpen ? styles.fabActive : ''}`}
+          onClick={() => {
+            setMobileUsersOpen(false);
+            setMobileToolbarOpen(v => !v);
+          }}
+          aria-label={mobileToolbarOpen ? 'Close tools' : 'Open tools'}
+          aria-expanded={mobileToolbarOpen}
+          aria-haspopup="dialog"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M16.5 3a4.5 4.5 0 014.5 4.5c0 1.5-.6 2.7-1.5 3.6l-1.7 1.7c-.3.3-.4.7-.4 1.1v.1c0 1.7-1.3 3-3 3h-.4c-.6 0-1 .4-1 1v.5c0 1.4-1.1 2.5-2.5 2.5C7.3 21 3 16.7 3 11.5S7.3 2 12.5 2c1.4 0 2.5 1.1 2.5 2.5"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+            <circle cx="8" cy="8.5" r="1.2" fill="currentColor" />
+            <circle cx="7" cy="13" r="1.2" fill="currentColor" />
+            <circle cx="11" cy="6" r="1.2" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

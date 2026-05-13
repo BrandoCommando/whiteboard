@@ -10,6 +10,8 @@ interface Props {
   strokes: Stroke[];
   hiddenUserIds: Set<string>;
   onToggleVisibility: (userId: string) => void;
+  isMobileOpen: boolean;
+  onCloseMobile: () => void;
 }
 
 type PanelUser = {
@@ -28,6 +30,8 @@ export default function UsersPanel({
   strokes,
   hiddenUserIds,
   onToggleVisibility,
+  isMobileOpen,
+  onCloseMobile,
 }: Props) {
   const allUsers = useMemo(() => {
     const presenceById = new Map<string, { username: string; color: string }>();
@@ -80,11 +84,28 @@ export default function UsersPanel({
   const onlineCount = allUsers.filter(u => u.isOnline).length;
 
   return (
-    <aside className={styles.panel}>
-      <p className={styles.heading}>
-        <span className={styles.dot} />
-        {onlineCount} online
-      </p>
+    <aside
+      className={`${styles.panel} ${isMobileOpen ? styles.mobileOpen : ''}`}
+      role="dialog"
+      aria-label="People"
+      aria-modal={isMobileOpen ? true : undefined}
+    >
+      <div className={styles.headerRow}>
+        <p className={styles.heading}>
+          <span className={styles.dot} />
+          {onlineCount} online
+        </p>
+        <button
+          type="button"
+          className={styles.mobileCloseBtn}
+          onClick={onCloseMobile}
+          aria-label="Close people panel"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
       <div className={styles.list}>
         {allUsers.map(u => (
           <button

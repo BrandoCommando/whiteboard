@@ -16,6 +16,13 @@
   overflow-y: auto;
 }
 
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .heading {
   font-size: 11px;
   font-weight: 600;
@@ -25,6 +32,24 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.mobileCloseBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+.mobileCloseBtn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .dot {
@@ -122,4 +147,46 @@
 
 .offline {
   background: var(--text-dim);
+}
+
+@keyframes panelDialogIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 16px)) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* ----- MOBILE ----- */
+@media (max-width: 768px) {
+  .panel {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(420px, calc(100vw - 32px));
+    height: auto;
+    max-height: calc(100dvh - 120px);
+    border-radius: 20px;
+    z-index: 1150;
+    display: none;
+    background: var(--glass-bg-elevated);
+    box-shadow: var(--glass-highlight), 0 24px 60px rgba(0, 0, 0, 0.55);
+  }
+
+  .panel.mobileOpen {
+    display: flex;
+    animation: panelDialogIn 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .mobileCloseBtn {
+    display: flex;
+  }
+
+  .heading {
+    font-size: 12px;
+  }
 }

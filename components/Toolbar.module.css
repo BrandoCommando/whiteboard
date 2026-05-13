@@ -21,6 +21,11 @@
   overscroll-behavior: contain;
 }
 
+/* Mobile close button (hidden on desktop) */
+.mobileCloseBtn {
+  display: none;
+}
+
 /* Disable global pseudo-tooltips inside toolbar scroll container. */
 .toolbar [data-tooltip]:hover::after,
 .toolbar [data-tooltip]:focus-visible::after {
@@ -354,5 +359,89 @@
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes toolbarSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ----- MOBILE ----- */
+@media (max-width: 768px) {
+  /* Toolbar is hidden until toggled via the FAB; floats above the canvas */
+  .toolbar {
+    position: fixed;
+    left: max(10px, env(safe-area-inset-left));
+    top: max(10px, env(safe-area-inset-top));
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 84px);
+    height: auto;
+    max-height: none;
+    width: 60px;
+    padding: 10px 0 12px;
+    z-index: 1150;
+    display: none;
+  }
+
+  .toolbar.mobileOpen {
+    display: flex;
+    animation: toolbarSlideIn 180ms ease-out;
+  }
+
+  .mobileCloseBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 4px;
+    flex-shrink: 0;
+    transition: background var(--transition), color var(--transition);
+  }
+  .mobileCloseBtn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  /* Tighter spacing for the narrower mobile toolbar */
+  .toolBtn,
+  .colorTrigger {
+    width: 40px;
+    height: 36px;
+  }
+
+  .sizeBtn {
+    width: 40px;
+    height: 30px;
+  }
+
+  .actionBtn {
+    width: 40px;
+    height: 32px;
+  }
+
+  .divider {
+    width: 30px;
+    margin: 4px 0;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .slider {
+    height: 50px;
   }
 }
