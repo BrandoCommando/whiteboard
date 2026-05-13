@@ -34,13 +34,21 @@ export default function Home() {
   if (loading) {
     return (
       <div style={{
-        height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'var(--bg)',
+        height: '100dvh',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'transparent',
       }}>
         <div style={{
-          width: 28, height: 28, border: '2px solid var(--border)',
-          borderTopColor: 'var(--accent)', borderRadius: '50%',
+          width: 32,
+          height: 32,
+          border: '2px solid rgba(255,255,255,0.12)',
+          borderTopColor: 'var(--accent)',
+          borderRadius: '50%',
           animation: 'spin 0.7s linear infinite',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
         }} />
       </div>
     );
