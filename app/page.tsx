@@ -17,7 +17,7 @@ export default function Home() {
         const parsed = JSON.parse(stored);
         setUser(parsed);
       }
-    } catch (_) {}
+    } catch {}
     setLoading(false);
   }, []);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useMemo } from 'react';
 import { Stroke, Tool, Point, User, ActiveUser } from '@/types';
 import styles from './Canvas.module.css';
 
@@ -103,12 +103,10 @@ export default function Canvas({
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
   const currentPoints = useRef<Point[]>([]);
-  const [cursors, setCursors] = useState<ActiveUser[]>([]);
-
-  // Keep cursors in sync
-  useEffect(() => {
-    setCursors(activeUsers.filter(u => u.cursor));
-  }, [activeUsers]);
+  const cursors = useMemo(
+    () => activeUsers.filter(u => u.cursor),
+    [activeUsers],
+  );
 
   // Resize canvas to match container
   useEffect(() => {

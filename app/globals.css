@@ -22,8 +22,8 @@
   --warning: #ff9f0a;
   --radius: 12px;
   --radius-lg: 22px;
-  --font-mono: ui-monospace, 'SF Mono', 'Space Mono', monospace;
-  --font-body: system-ui, -apple-system, 'SF Pro Text', 'DM Sans', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', var(--font-space-mono), monospace;
+  --font-body: var(--font-dm-sans), system-ui, -apple-system, 'SF Pro Text', sans-serif;
   --toolbar-w: 72px;
   --sidebar-w: 248px;
   --transition: 180ms cubic-bezier(0.25, 0.1, 0.25, 1);
