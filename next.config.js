@@ -5,4 +5,5 @@ const nextConfig = {
 
 module.exports = nextConfig;
 
-import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());
+if(!process.env.VERCEL)
+  import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());
